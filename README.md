@@ -1,6 +1,6 @@
 # Live-Katzen-Erkennung aus Kamera-Stream
 
-Dieses kleine Tool nimmt einen Kamera-Stream (Webcam, RTSP, HTTP oder Datei) und erkennt im Live-Feed Katzen mit einem vortrainierten YOLO-Modell.
+Dieses Tool nimmt einen Kamera-Stream (Webcam, RTSP, HTTP oder Datei) und erkennt im Live-Feed Katzen mit einem vortrainierten YOLO-Modell.
 
 ## Setup
 
@@ -41,6 +41,17 @@ python cat_stream_detector.py --source "rtsp://user:pass@ip:554/stream"
 - Ein Fenster `Katzen-Erkennung` zeigt den Live-Feed.
 - Erkannte Katzen werden mit Bounding-Box und Konfidenz markiert.
 - Mit `q` beendest du den Lauf.
+
+## Fehlerbehebung
+
+- Hilfe anzeigen funktioniert immer ohne installierte Pakete:
+  ```bash
+  python cat_stream_detector.py --help
+  ```
+- Falls beim Start `cv2` oder `ultralytics` fehlt:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
 ## Hinweise
 

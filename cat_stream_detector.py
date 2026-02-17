@@ -6,10 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass
-from typing import Union
-
-import cv2
-from ultralytics import YOLO
+from typing import Any, Sequence, Union
 
 
 @dataclass
@@ -25,25 +22,54 @@ def parse_source(raw_source: str) -> Union[int, str]:
     return raw_source
 
 
-def draw_cat_annotations(frame, boxes, confidences):
+def draw_cat_annotations(cv2_module: Any, frame: Any, boxes: Sequence[Sequence[float]], confidences: Sequence[float]) -> None:
     """Zeichnet Bounding-Boxen und Konfidenz für erkannte Katzen."""
     for box, confidence in zip(boxes, confidences):
         x1, y1, x2, y2 = map(int, box)
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (40, 200, 40), 2)
+        cv2_module.rectangle(frame, (x1, y1), (x2, y2), (40, 200, 40), 2)
         label = f"Katze {confidence:.2f}"
-        cv2.putText(
+        cv2_module.putText(
             frame,
             label,
             (x1, max(30, y1 - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2_module.FONT_HERSHEY_SIMPLEX,
             0.7,
             (40, 200, 40),
             2,
-            cv2.LINE_AA,
+            cv2_module.LINE_AA,
         )
 
 
+def extract_cat_boxes(result: Any) -> tuple[list[list[float]], list[float]]:
+    """Extrahiert Katzen-Detektionen aus einem Ultralytics-Resultat."""
+    cat_boxes: list[list[float]] = []
+    cat_confidences: list[float] = []
+
+    for det in result.boxes:
+        class_id = int(det.cls[0])
+        if result.names.get(class_id) != "cat":
+            continue
+        cat_boxes.append(det.xyxy[0].tolist())
+        cat_confidences.append(float(det.conf[0]))
+
+    return cat_boxes, cat_confidences
+
+
 def run_detector(source: Union[int, str], model_path: str, conf_threshold: float) -> None:
+    try:
+        import cv2
+    except ImportError as exc:
+        raise RuntimeError(
+            "OpenCV (cv2) ist nicht installiert. Bitte `pip install -r requirements.txt` ausführen."
+        ) from exc
+
+    try:
+        from ultralytics import YOLO
+    except ImportError as exc:
+        raise RuntimeError(
+            "Ultralytics ist nicht installiert. Bitte `pip install -r requirements.txt` ausführen."
+        ) from exc
+
     model = YOLO(model_path)
     cap = cv2.VideoCapture(source)
 
@@ -62,21 +88,12 @@ def run_detector(source: Union[int, str], model_path: str, conf_threshold: float
 
             stats.total_frames += 1
             result = model.predict(frame, conf=conf_threshold, verbose=False)[0]
-
-            cat_boxes = []
-            cat_confidences = []
-            for det in result.boxes:
-                class_id = int(det.cls[0])
-                if result.names[class_id] != "cat":
-                    continue
-
-                cat_boxes.append(det.xyxy[0].tolist())
-                cat_confidences.append(float(det.conf[0]))
+            cat_boxes, cat_confidences = extract_cat_boxes(result)
 
             if cat_boxes:
                 stats.cat_frames += 1
 
-            draw_cat_annotations(frame, cat_boxes, cat_confidences)
+            draw_cat_annotations(cv2, frame, cat_boxes, cat_confidences)
 
             info = f"Frames: {stats.total_frames} | Cat-Frames: {stats.cat_frames}"
             cv2.putText(
